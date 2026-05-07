@@ -1,18 +1,22 @@
 <#
 .SYNOPSIS
-  Full setup of a new client project for MC Framework.
+  Provision a new client environment for MC Framework.
 
 .DESCRIPTION
   Orchestrates:
     1. Verifies WSL2 installed (installs if missing)
-    2. Gathers client info (tenant, env, solution, etc.)
+    2. Gathers client info (tenant, env, optional solution)
     3. Creates WSL distro <ClientName> (clone of Ubuntu-24.04)
     4. Bootstraps dev tools inside (node, az, dotnet, pac) via distro-setup.sh
     5. Launches az login --use-device-code (waits for human auth)
     6. Launches pac auth create --deviceCode (waits for human auth)
-    7. Scaffolds the code app starter
-    8. Writes .mcp.json and CLAUDE.md from templates
-    9. Reports next steps
+    7. Writes .mcp.json, CLAUDE.md, .gitignore from templates
+    8. Reports next steps
+
+  Scope: authentication + access + environment only.
+  Project scaffolding (Code App, Power Automate solution clone, etc.)
+  is the user's choice and happens AFTER this script - typically by
+  asking the agent to do it via the project's CLAUDE.md.
 
   Prerequisites: PowerShell 5.1+, WSL2 (installed on-demand), Chrome/Edge/Brave.
 
@@ -70,7 +74,7 @@ function Get-Distros {
 
 # --- Step 1: WSL2 ---
 
-Write-Header "Setup '$ClientName' - Step 1/9: WSL2"
+Write-Header "Setup '$ClientName' - Step 1/8: WSL2"
 
 if (-not (Test-WslAvailable)) {
     Write-Warn 'WSL2 not installed.'
@@ -84,11 +88,11 @@ Write-Ok 'WSL2 available.'
 
 # --- Step 2: gather info ---
 
-Write-Header "Step 2/9: Client info"
+Write-Header "Step 2/8: Client info"
 $tenantId = Read-Host '  Tenant ID (GUID)'
 $envUrl   = Read-Host '  Env URL (e.g. https://example.crm4.dynamics.com/)'
 $envId    = Read-Host '  Env ID (GUID, optional - blank to skip pac auth env binding)'
-$solution = Read-Host '  Solution name (e.g. MainSolution; optional)'
+$solution = Read-Host '  Solution name (optional - just stored in CLAUDE.md for reference)'
 
 if (-not $envUrl.EndsWith('/')) { $envUrl += '/' }
 
@@ -102,7 +106,7 @@ if ($proceed -ne 'y') { Write-Info 'Aborted.'; exit 0 }
 
 # --- Step 3: create distro ---
 
-Write-Header "Step 3/9: Create distro '$ClientName'"
+Write-Header "Step 3/8: Create distro '$ClientName'"
 
 if ((Get-Distros) -contains $ClientName) {
     Write-Warn "Distro '$ClientName' already exists. Skipping."
@@ -146,7 +150,7 @@ if ((Get-Distros) -contains $ClientName) {
 
 # --- Step 4: bootstrap dev tools ---
 
-Write-Header "Step 4/9: Bootstrap dev tools"
+Write-Header "Step 4/8: Bootstrap dev tools"
 
 $setupScript = Join-Path $ScriptRoot 'distro-setup.sh'
 if (-not (Test-Path $setupScript)) {
@@ -161,7 +165,7 @@ Write-Ok 'Dev tools installed.'
 
 # --- Step 5: az login ---
 
-Write-Header "Step 5/9: az login"
+Write-Header "Step 5/8: az login"
 Write-Info 'Will open device-code flow. Open the URL in the client Chrome profile.'
 $az = "az login --use-device-code"
 if ($tenantId) { $az += " --tenant $tenantId" }
@@ -171,7 +175,7 @@ Write-Ok 'az authenticated inside the distro.'
 
 # --- Step 6: pac auth ---
 
-Write-Header "Step 6/9: pac auth"
+Write-Header "Step 6/8: pac auth"
 Write-Info 'New device-code flow. Same Chrome profile.'
 $pac = "pac auth create --deviceCode"
 if ($envId) { $pac += " --environment $envId" }
@@ -179,24 +183,9 @@ if ($envId) { $pac += " --environment $envId" }
 if ($LASTEXITCODE -ne 0) { Write-Warn 'pac auth failed - you can retry manually later.' }
 else { Write-Ok 'pac authenticated inside the distro.' }
 
-# --- Step 7: scaffold code app starter ---
+# --- Step 7: write .mcp.json + CLAUDE.md ---
 
-Write-Header "Step 7/9: Scaffold code app"
-$codeAppDir = Join-Path $ProjectRoot 'code-app'
-if (Test-Path $codeAppDir) {
-    Write-Warn "Folder 'code-app/' already exists. Skipping scaffold."
-} else {
-    Write-Info "Scaffolding via 'npx degit microsoft/PowerAppsCodeApps/templates/starter code-app'..."
-    Push-Location $ProjectRoot
-    & wsl.exe -d $ClientName --cd (ConvertTo-WslPath $ProjectRoot) -- bash -lc 'npx -y degit microsoft/PowerAppsCodeApps/templates/starter code-app'
-    Pop-Location
-    if ($LASTEXITCODE -ne 0) { Write-Warn 'Scaffold via degit failed. You can do it manually.' }
-    else { Write-Ok 'Code app starter at ./code-app/' }
-}
-
-# --- Step 8: write .mcp.json + CLAUDE.md ---
-
-Write-Header "Step 8/9: Templates"
+Write-Header "Step 7/8: Templates"
 $templatesDir = Join-Path $FrameworkRoot 'templates'
 
 # .mcp.json
@@ -236,20 +225,25 @@ if ((Test-Path $gitignoreTemplate) -and (-not (Test-Path $gitignoreTarget))) {
     Write-Ok "Wrote .gitignore"
 }
 
-# --- Step 9: report ---
+# --- Step 8: report ---
 
-Write-Header "Step 9/9: Done"
-Write-Info "Project ready at: $ProjectRoot"
+Write-Header "Step 8/8: Done"
+Write-Info "Environment ready at: $ProjectRoot"
+Write-Info ''
+Write-Info 'You now have:'
+Write-Info "  - WSL distro '$ClientName' with Node, az, .NET, pac installed"
+Write-Info '  - az + pac authenticated to the client tenant (inside the distro)'
+Write-Info '  - .mcp.json wired to use the WSL bridge for Dataverse + Microsoft Learn HTTP'
+Write-Info '  - CLAUDE.md with client info, ready for the agent to read'
 Write-Info ''
 Write-Info 'Next steps:'
-Write-Info "  1. Open VS Code here (will be Claude Code aware of CLAUDE.md):"
-Write-Info "       code ."
-Write-Info "  OR via remote-WSL:"
+Write-Info '  1. Open the project:'
 Write-Info "       mc open $ClientName"
+Write-Info '     OR plain VS Code: code ."'
 Write-Info ''
-Write-Info "  2. To run dev server:"
-Write-Info "       mc dev $ClientName"
-Write-Info ''
-Write-Info "  3. Tell Claude what you want to do (it will read CLAUDE.md + AGENTS.md)."
+Write-Info '  2. Ask the agent (or run yourself) to scaffold what you need:'
+Write-Info '       - Code App: npx degit microsoft/PowerAppsCodeApps/templates/starter <subfolder>'
+Write-Info '       - Power Automate: pac solution clone --name <SolutionName>'
+Write-Info '       - Other: see Microsoft Learn (microsoft-learn MCP is already wired)'
 Write-Info ''
 Write-Ok 'Setup complete.'

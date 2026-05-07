@@ -1,17 +1,19 @@
 <#
 .SYNOPSIS
-  MC Framework CLI: management of multi-client Power Platform projects with WSL isolation.
+  MC Framework CLI: per-client WSL isolation for Power Platform consultants.
 
 .DESCRIPTION
-  Single front-end to create, open, operate, and destroy client projects that use
-  MC Framework. Each client has its own dedicated WSL2 distro where auth tokens,
-  dev tools, and MCP server processes live.
+  Single front-end to create, open, and manage WSL distros that hold per-client
+  authentication and dev tools. The framework's scope is strictly authentication,
+  access, and environment provisioning - it does NOT prescribe development
+  workflows (deploy, build, test, etc.). For those, the agent consults
+  Microsoft Learn (via MCP), Microsoft samples and skills repos, or relies on
+  general knowledge.
 
 .EXAMPLE
   mc new acme-corp
   mc open acme-corp
-  mc dev acme-corp
-  mc deploy acme-corp
+  mc shell acme-corp
   mc logout acme-corp
   mc destroy acme-corp
 
@@ -78,7 +80,6 @@ function ConvertTo-WslPath([string]$winPath) {
 }
 
 function Get-ProjectPath {
-    # Resolve project = current working dir (assumed)
     return (Get-Location).Path
 }
 
@@ -133,39 +134,8 @@ function Invoke-Dev {
     $wslPath = ConvertTo-WslPath $projectPath
     Write-Header "npm run dev in '$ClientName'"
     Write-Info "cwd: $wslPath"
-    Write-Info 'Ctrl+C to stop.'
+    Write-Info 'Ctrl+C to stop. (No-op if the project has no npm/dev script.)'
     & wsl.exe -d $ClientName --cd $wslPath -- bash -lc 'npm install --no-audit --no-fund && npm run dev'
-}
-
-function Invoke-Deploy {
-    param([string]$ClientName)
-    if (-not $ClientName) { Write-Err 'Usage: mc deploy <client-name>'; exit 1 }
-    Assert-Distro $ClientName
-    Write-Header "DEPLOY '$ClientName'"
-    Write-Info 'Follows PROTOCOLS.md DEPLOY:'
-    Write-Info '  1. tsc --noEmit'
-    Write-Info '  2. npm run build'
-    Write-Info '  3. explicit y/n confirmation'
-    Write-Info '  4. pac code push --solutionName <Solution>'
-    Write-Info ''
-    Write-Warn 'This command requires Solution name. Recommended: ask Claude to execute the protocol.'
-    Write-Info 'Or set $env:PP_SOLUTION and re-run.'
-    if (-not $env:PP_SOLUTION) {
-        Write-Err 'No PP_SOLUTION defined. Aborting.'
-        exit 1
-    }
-    $projectPath = Get-ProjectPath
-    $wslPath = ConvertTo-WslPath $projectPath
-    Write-Info "Pre-validation..."
-    & wsl.exe -d $ClientName --cd $wslPath -- bash -lc 'npx tsc -b --noEmit'
-    if ($LASTEXITCODE -ne 0) { Write-Err 'tsc failed.'; exit 1 }
-    & wsl.exe -d $ClientName --cd $wslPath -- bash -lc 'npm run build'
-    if ($LASTEXITCODE -ne 0) { Write-Err 'build failed.'; exit 1 }
-    Write-Ok 'Pre-validation passed.'
-    $confirm = Read-Host "  Push to solution '$env:PP_SOLUTION'? (y/n)"
-    if ($confirm -ne 'y') { Write-Info 'Cancelled.'; return }
-    & wsl.exe -d $ClientName --cd $wslPath -- bash -lc "pac code push --solutionName $env:PP_SOLUTION"
-    if ($LASTEXITCODE -eq 0) { Write-Ok 'Deploy complete.' } else { Write-Err 'Push failed.' }
 }
 
 function Invoke-AuthStatus {
@@ -218,22 +188,26 @@ function Show-Help {
 
   mc - MC Framework CLI
 
+  Authentication, access, and environment provisioning for multi-client
+  Power Platform consulting on personal hardware. Development workflows
+  (deploy, build, test) are NOT in scope - use Microsoft Learn (via MCP),
+  Microsoft samples, or general knowledge for those.
+
   Commands:
-    mc new <client>              Full setup (distro + tools + auth + scaffold)
-    mc adopt <client>            Migrate existing project to isolated model
+    mc new <client>              Create distro + install tools + authenticate + write templates
+    mc adopt <client>            Migrate existing project to isolated WSL model
     mc open <client>             Open VS Code Remote-WSL in current directory
     mc shell <client>            Interactive shell in the distro
-    mc dev <client>              npm run dev inside the distro
-    mc deploy <client>           DEPLOY protocol (requires PP_SOLUTION env var)
+    mc dev <client>              Convenience: npm install && npm run dev inside the distro
     mc auth status <client>      Authentication state inside the distro
     mc logout <client>           pac auth clear + az logout inside the distro
     mc destroy <client>          wsl --unregister (destructive)
     mc list                      List existing distros
     mc help                      This message
 
-  The 'open', 'dev', 'shell' commands use the current directory as the project.
+  The 'open', 'shell', 'dev' commands operate on the current directory as the project.
 
-  More info: mc-framework/AGENTS.md, mc-framework/PROTOCOLS.md.
+  More info: mc-framework/AGENTS.md.
 
 '@ -ForegroundColor Gray
 }
@@ -246,7 +220,6 @@ switch ($Command.ToLower()) {
     'open'    { Invoke-Open    $Rest[0] }
     'shell'   { Invoke-Shell   $Rest[0] }
     'dev'     { Invoke-Dev     $Rest[0] }
-    'deploy'  { Invoke-Deploy  $Rest[0] }
     'auth'    {
         if ($Rest[0] -eq 'status') { Invoke-AuthStatus $Rest[1] }
         else { Write-Err 'Usage: mc auth status <client>' }

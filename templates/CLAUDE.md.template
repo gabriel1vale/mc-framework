@@ -13,54 +13,42 @@
 
 ## Framework
 
-This project uses **MC Framework** for auth isolation and Power Platform patterns.
+This project uses **MC Framework** for authentication, access, and environment provisioning.
 
 @mc-framework/AGENTS.md
 
-Read AGENTS.md before any operation. It contains:
+Read AGENTS.md to understand:
 
-- Which `mc` commands are available
-- How to authenticate inside the WSL distro
-- Patterns for Dataverse, rollups, bulk ops, imports
+- Which `mc` commands are available (open, shell, dev, auth status, logout, destroy)
+- How auth and access work in this isolated WSL model
+- Why MCP servers run inside the distro (and how the stdio bridge works)
 - When to ask vs. when to execute
-- Non-negotiable principles
 
-## What I'm doing
-
-[Describe here what you intend to do in this session. E.g.:]
-
-- Initial setup — scaffold a new Code App and add `account` table as a data source
-- OR: edit existing — add column X to table Y and update UI
-- OR: bulk import — I have an xlsx with X rows to import to table Z
+For Power Platform / Dataverse / Code Apps / Power Automate / etc. development questions
+that are NOT covered by MC Framework, the agent should consult:
+- The `microsoft-learn` MCP (already wired in `.mcp.json`)
+- [microsoft/PowerAppsCodeApps](https://github.com/microsoft/PowerAppsCodeApps) samples
+- [microsoft/power-platform-skills](https://github.com/microsoft/power-platform-skills) (the official Claude plugin, optionally installed)
+- Its own general knowledge / reasoning
 
 ## Quick commands
 
 ```powershell
 mc open {{DISTRO}}     # open VS Code Remote-WSL
-mc dev {{DISTRO}}      # npm run dev inside the distro
-mc shell {{DISTRO}}    # interactive shell
-mc auth status {{DISTRO}}   # check pac/az auth
+mc shell {{DISTRO}}    # interactive shell inside the distro
+mc dev {{DISTRO}}      # convenience: npm install && npm run dev
+mc auth status {{DISTRO}}   # check pac/az auth state
 mc logout {{DISTRO}}   # logout at end of day
 ```
 
-For deploy:
+## What I'm doing
 
-```powershell
-$env:PP_SOLUTION = '{{SOLUTION}}'
-mc deploy {{DISTRO}}
-```
-
-## Project logs
-
-Significant operations on live systems (deploys, imports, schema changes) go to:
-
-```
-dataverse/logs/YYYY-MM-DD/session.md
-```
-
-Daily chronology + metrics. See [PROTOCOLS.md](mc-framework/PROTOCOLS.md) WRAPUP for the standard.
+[Describe here what you intend to do in this session. The agent reads this and decides
+how to proceed using the framework's commands + Microsoft Learn / official skills /
+general reasoning.]
 
 ## Project-specific notes
 
-[Add here anything specific the agent needs to know to avoid having to
-re-discover every session — schema gotchas, business rules, external dependencies, etc.]
+[Add here anything specific the agent needs to know to avoid having to re-discover
+every session — domain rules, gotchas, external dependencies, conventions, etc.
+This is YOUR project memory; the framework intentionally does not prescribe it.]
