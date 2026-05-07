@@ -2,6 +2,8 @@
 
 Operational protocols consistent across clients. When the user invokes one of these keywords, follow the steps described exactly.
 
+These protocols cover **deployment, session wrap-up, and rollback** — three operations common to any Power Platform Code App project regardless of domain. Domain-specific operations (data imports, schema migrations, etc.) belong in the project's own `CLAUDE.md`, not here.
+
 ---
 
 ## DEPLOY
@@ -144,86 +146,6 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 ### 6. Push (only with confirmation)
 
 Ask the user before `git push`. NOT auto-push even if the session started with "wrapup".
-
----
-
-## IMPORT
-
-Bulk import of data from a file (xlsx/csv) into a Dataverse table.
-
-### 1. Gather info
-
-- Source file path
-- Target table
-- Column mapping → fields (can ask the user or infer from header)
-- Edit mode (import as adjustment — `<edit_field> = true`) or real movement
-
-### 2. Inspect schema
-
-```
-mcp__dataverse__describe_table(<table>)
-```
-
-Identify:
-- Lookup fields (need `@odata.bind`)
-- Required fields
-- Choice fields (need option set values)
-- Boolean fields (especially "is edit" / "is adjustment" flag if present)
-
-### 3. Pre-resolve lookups
-
-For each lookup:
-- Load index of the related table (e.g., products by SKU)
-- Build in-memory map
-
-### 4. Parse + validate
-
-- Robust parser (RFC-4180 for CSV, exceljs for xlsx)
-- Per-row validation: required fields, lookup matches, value types
-- Invalid rows go to one bucket, valid to another
-- Report summary to the user before submitting
-
-### 5. Confirmation
-
-If ≥ 100 valid rows, **force explicit confirmation** (`window.confirm` if UI, y/n prompt if script).
-
-### 6. Bulk create
-
-Pattern: `Promise.allSettled` in batches of 10.
-
-For auth: `az account get-access-token --resource <env-url>` from **inside the distro**.
-
-```javascript
-const token = process.env.DV_TOKEN;
-const headers = {
-  Authorization: `Bearer ${token}`,
-  'OData-Version': '4.0',
-  'Content-Type': 'application/json',
-  Prefer: 'return=representation',
-};
-
-for (const batch of chunk(rows, 10)) {
-  const results = await Promise.allSettled(
-    batch.map((r) => fetch(`${API_BASE}/<entitysetname>`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(buildPayload(r)),
-    })),
-  );
-  // tally success/failure
-}
-```
-
-### 7. Recalc rollups
-
-If the table feeds rollup columns in another table, follow `docs/ROLLUP_PATTERNS.md`. **Don't assume the engine recalcs on its own** — there's a known empty-source bug (see doc).
-
-### 8. Verify + report
-
-Count records via `read_query`. Report totals to the user. Update `dataverse/logs/YYYY-MM-DD/session.md` with:
-- Source file
-- Metrics (matched/skipped/created/errors)
-- List of skipped (if applicable)
 
 ---
 

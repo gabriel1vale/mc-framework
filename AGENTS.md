@@ -4,11 +4,15 @@
 
 ## What MC Framework is
 
-A framework for **multi-client Power Platform projects**. Solves three problems:
+A framework for **multi-client Power Platform projects** focused on three concerns: **authentication**, **access**, and **environment**.
+
+It does NOT prescribe Power Platform / Dataverse development patterns — those come from Microsoft Learn (consult via `microsoft-learn` MCP), Microsoft samples (`microsoft/PowerAppsCodeApps`), the official Microsoft Claude plugin (`microsoft/power-platform-skills`), and the project's own `CLAUDE.md`.
+
+What MC Framework provides:
 
 1. **Per-client credential isolation** — each client has its own WSL2 distro where `pac` and `az` tokens live, along with MCP server processes. The Windows host never holds client credentials.
-2. **Documented Power Platform patterns** — Dataverse lookup gotchas, rollup empty-source workaround, bulk ops via Web API, import pipelines.
-3. **Operation patterns** (DEPLOY, WRAPUP, IMPORT, ROLLBACK) consistent across clients.
+2. **Per-client environment provisioning** — distro creation, dev tools install (Node, az, .NET, pac), MCP wiring (Dataverse via WSL bridge + Microsoft Learn HTTP).
+3. **Multi-client orchestration via the `mc` CLI** — `new`, `adopt`, `open`, `dev`, `shell`, `deploy`, `auth status`, `logout`, `destroy`.
 
 ## Mental model of the work environment
 
@@ -30,9 +34,9 @@ Windows host (user's PC)
 
 ### The user opens Claude Code in a folder. What you do:
 
-1. **Read the project's `CLAUDE.md`** — describes the client, env URL, tenant, solution name, associated WSL distro.
+1. **Read the project's `CLAUDE.md`** — describes the client, env URL, tenant, solution name, associated WSL distro, and any project-specific instructions.
 2. **Read this AGENTS.md** (you're reading it now — via `@mc-framework/AGENTS.md` in the project's CLAUDE.md).
-3. **Load relevant patterns** when needed — follow the `@` references below.
+3. **For Power Platform / Dataverse questions**: consult the `microsoft-learn` MCP (always-on in `.mcp.json`) before answering. Microsoft docs are the source of truth.
 
 ### When the user asks "set up new project":
 
@@ -45,7 +49,7 @@ Follow the protocol in `scripts/new-project.ps1`:
    - Installs node, az, dotnet, pac inside
    - Launches `az login --use-device-code` — pauses for human auth
    - Launches `pac auth create --deviceCode` — pauses again
-   - Scaffolds the code app from `templates/code-app-starter/` (or via `npx degit microsoft/PowerAppsCodeApps/templates/starter`)
+   - Scaffolds the code app via `npx degit microsoft/PowerAppsCodeApps/templates/starter`
    - Writes `.mcp.json` in the project from `templates/.mcp.json.template`
    - Writes `CLAUDE.md` from `templates/CLAUDE.md.template`
 4. **Report** the final state: project path, distro name, next steps.
@@ -68,32 +72,18 @@ Follow `PROTOCOLS.md` section **DEPLOY**. Summary:
 2. Explicit y/n confirmation
 3. `wsl -d <Distro> -- bash -lc "cd <project> && pac code push --solutionName <Solution>"`
 4. Post-deploy verification via `pac code list`
-5. Update logs, version history, session handoff
+5. Update the project's logs / version history per `PROTOCOLS.md` WRAPUP
 
-### When the user asks "bulk import":
+### When the user asks domain-specific things ("import data", "edit lookup", "fix rollup", etc.)
 
-Follow `docs/IMPORT_PIPELINE.md`. Standard pattern:
+These are **outside the framework's scope**. Use:
 
-1. Ask for source file (xlsx/csv) and target table
-2. Inspect table schema via MCP `dataverse__describe_table`
-3. Adapt `scripts/lib/import-template.mjs` to the client's schema
-4. Auth: `az account get-access-token --resource <env-url>` (from inside the WSL distro)
-5. Web API direct with `Promise.allSettled` in batches of 10
-6. Recalc rollups afterwards (if applicable — see `ROLLUP_PATTERNS.md`)
+1. **`microsoft-learn` MCP** for Power Platform / Dataverse / Code Apps reference (always current)
+2. **`mcp__dataverse__*`** for schema queries and ad-hoc CRUD inside the project's distro
+3. The project's own **`CLAUDE.md`** for project-specific patterns and constraints
+4. The official **Microsoft Claude plugin** if installed (`code-apps@power-platform-skills`)
 
-### When the user asks "read table X":
-
-1. Use MCP `dataverse__describe_table` to obtain the schema
-2. For simple queries: `dataverse__read_query` (limit 20 records per call)
-3. For large queries: use the pattern in `BULK_OPS_PATTERNS.md` (Web API direct)
-
-## Critical patterns (read when relevant)
-
-@docs/DATAVERSE_PATTERNS.md
-@docs/ROLLUP_PATTERNS.md
-@docs/BULK_OPS_PATTERNS.md
-@docs/IMPORT_PIPELINE.md
-@docs/MCP_SETUP.md
+If the user is consistently asking about a domain pattern that you find yourself re-explaining, capture it in the project's `CLAUDE.md` (not in MC Framework).
 
 ## Tools available
 
@@ -125,7 +115,7 @@ wsl.exe -d <Client> --cd <wsl-path> -- <command>
 
 ### Web tools
 
-- `WebFetch` for specific URLs (e.g. GitHub raw files)
+- `WebFetch` for specific URLs (e.g. GitHub raw files, Microsoft samples)
 - `WebSearch` for general queries
 
 ## When to ask vs when to execute
@@ -142,20 +132,19 @@ wsl.exe -d <Client> --cd <wsl-path> -- <command>
 - Code edits (Read/Edit/Write) — user sees them next time they look
 - Microsoft Learn lookups
 
-### For Power Platform / Code Apps tasks:
-**Ask 2-3 essential questions max, then verify state autonomously, then execute.** Don't ask the user to "read §X first." If context is missing, go fetch it (read code, read docs via MCP) — only ask what you cannot discover yourself.
+### For tasks that need 2-3 questions to scope:
+**Ask the essential 2-3 questions max, then verify state autonomously, then execute.** Don't ask the user to "read §X first." If context is missing, go fetch it (read code, read docs via MCP) — only ask what you cannot discover yourself.
 
 ## Non-negotiable principles
 
 1. **Explicit confirmation for destructive ops.** Always. Regardless of "I confirmed before."
 2. **Auth never on the Windows host.** If you see `pac auth create` or `az login` without `wsl.exe` in front, it's wrong.
-3. **Microsoft Learn first.** Before inventing an answer about Power Platform/Dataverse, consult `mcp__claude_ai_Microsoft_Learn__microsoft_docs_search`. Official docs change; my training may be stale.
-4. **Logs in `dataverse/logs/YYYY-MM-DD/session.md`** for any significant operation in live systems (deploy, bulk import, schema change).
-5. **Immutable version history.** `VERSION_HISTORY.md` entries marked `COMPLETE - DO NOT MODIFY` are not re-edited. New releases go as new entries at the top.
+3. **Microsoft Learn first for Power Platform questions.** Before inventing an answer about Dataverse, Code Apps, Power Automate, etc., consult `mcp__claude_ai_Microsoft_Learn__microsoft_docs_search`. Official docs change; training may be stale.
+4. **Confirmation explícita for destructive operations.** Always.
 
-## Memory hooks (memory bank format)
+## Memory hooks
 
-When you learn something project-specific (lessons from the session), write it to the project's `SESSION_HANDOFF.md` under "Lessons" with:
+When you learn something project-specific (lessons from the session), write it to the project's `SESSION_HANDOFF.md` (or equivalent) under "Lessons" with:
 - **Rule**: single, actionable rule
 - **Why**: concrete reason (incident, constraint)
 - **How to apply**: when/where to apply
@@ -168,19 +157,18 @@ Example:
 **How to apply:** <when/where>
 ```
 
+These project-specific lessons stay in the project, not in MC Framework.
+
 ## To get started
 
-When the user says what they want to do, identify the case:
+When the user says what they want to do:
 
 | Case | Action |
 |---|---|
 | "create new project" / "set up from scratch" | `scripts/new-project.ps1` (with 2-3 initial questions) |
 | "adopt project X" / "migrate to framework" | `scripts/adopt-existing.ps1` |
-| "edit/read/change code" | Read/Edit/Write tools as usual |
-| "deploy" | `PROTOCOLS.md` DEPLOY |
-| "wrap up" | `PROTOCOLS.md` WRAPUP |
-| "import data" | `docs/IMPORT_PIPELINE.md` + adapt `scripts/lib/import-template.mjs` |
-| "read table X" / "explore schema" | MCP `dataverse__describe_table` + `read_query` |
+| "deploy" / "wrap up" / "rollback" | `PROTOCOLS.md` |
+| "edit/read/change code" | Read/Edit/Write tools |
+| Power Platform / Dataverse / Code Apps questions | `microsoft-learn` MCP first, then domain knowledge |
+| Project-specific gotcha not in MC Framework docs | Project's `CLAUDE.md` + `microsoft-learn` MCP |
 | Ambiguous | Ask 1-2 clarifying questions |
-
-Don't try to remember everything from here — use `@` references to specific docs when you need them.

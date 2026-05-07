@@ -6,18 +6,16 @@ All notable changes to MC Framework will be documented in this file.
 
 ### Added — Initial release
 
+**Scope:** authentication, access, and environment provisioning for multi-client Power Platform consulting on personal hardware. Domain-specific Power Platform / Dataverse patterns are intentionally NOT included — those are sourced from Microsoft Learn (via MCP) and per-project `CLAUDE.md`.
+
 **Documentation**
-- `README.md` — humans entry point
+- `README.md` — entry point (PT-BR)
 - `AGENTS.md` — manual for AI agents (Claude Code, Copilot)
-- `PROTOCOLS.md` — DEPLOY, WRAPUP, IMPORT, ROLLBACK protocols
+- `PROTOCOLS.md` — DEPLOY, WRAPUP, ROLLBACK protocols
 - `docs/ARCHITECTURE.md` — Windows host ↔ WSL2 ↔ Dataverse layers
 - `docs/MCP_SETUP.md` — `.mcp.json` config with WSL stdio bridge + Microsoft Learn HTTP MCP
 - `docs/AUTH_HYGIENE.md` — per-client isolation principles, defense in depth
 - `docs/MULTI_CLIENT.md` — onboarding guide, context switching, MDM mail template
-- `docs/DATAVERSE_PATTERNS.md` — FormattedValue, OData bind, autonumber, custom APIs
-- `docs/ROLLUP_PATTERNS.md` — empty-source bug + dummy-anchor pattern
-- `docs/BULK_OPS_PATTERNS.md` — `az` + Web API direct, parallel batches, pagination
-- `docs/IMPORT_PIPELINE.md` — RFC-4180 CSV, exceljs, header mapping, validation, preview UI
 
 **CLI (`mc`)**
 - `scripts/mc.cmd` — Windows launcher
@@ -27,11 +25,6 @@ All notable changes to MC Framework will be documented in this file.
 - `scripts/new-project.ps1` — full setup of new client (WSL distro, dev tools, az/pac auth, scaffolding, templates)
 - `scripts/adopt-existing.ps1` — migrate existing project to isolated model
 - `scripts/distro-setup.sh` — runs inside WSL, installs Node LTS, Azure CLI, .NET SDK 8, pac CLI
-
-**Helper templates (`scripts/lib/`)**
-- `token-from-az.mjs` — `az account get-access-token` wrapper + Web API helpers
-- `import-template.mjs` — parameterizable bulk import skeleton
-- `reset-template.mjs` — bulk delete + rollup recalc with dummy-anchor pattern
 
 **Templates**
 - `.mcp.json.template` — Dataverse via WSL bridge + Microsoft Learn HTTP
