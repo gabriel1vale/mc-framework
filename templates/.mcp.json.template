@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "dataverse": {
+      "type": "stdio",
+      "command": "wsl.exe",
+      "args": [
+        "-d", "{{DISTRO}}",
+        "--",
+        "npx", "-y", "@microsoft/dataverse",
+        "mcp", "{{ENV_URL}}"
+      ],
+      "env": {}
+    },
+    "microsoft-learn": {
+      "type": "http",
+      "url": "https://learn.microsoft.com/api/mcp"
+    }
+  }
+}

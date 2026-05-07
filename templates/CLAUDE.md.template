@@ -1,0 +1,66 @@
+# {{CLIENT}}
+
+## Client
+
+| Field | Value |
+|---|---|
+| Name | {{CLIENT}} |
+| Tenant ID | {{TENANT_ID}} |
+| Env URL | {{ENV_URL}} |
+| Env ID | {{ENV_ID}} |
+| Solution | {{SOLUTION}} |
+| WSL Distro | {{DISTRO}} |
+
+## Framework
+
+This project uses **MC Framework** for auth isolation and Power Platform patterns.
+
+@mc-framework/AGENTS.md
+
+Read AGENTS.md before any operation. It contains:
+
+- Which `mc` commands are available
+- How to authenticate inside the WSL distro
+- Patterns for Dataverse, rollups, bulk ops, imports
+- When to ask vs. when to execute
+- Non-negotiable principles
+
+## What I'm doing
+
+[Describe here what you intend to do in this session. E.g.:]
+
+- Initial setup — scaffold a new Code App and add `account` table as a data source
+- OR: edit existing — add column X to table Y and update UI
+- OR: bulk import — I have an xlsx with X rows to import to table Z
+
+## Quick commands
+
+```powershell
+mc open {{DISTRO}}     # open VS Code Remote-WSL
+mc dev {{DISTRO}}      # npm run dev inside the distro
+mc shell {{DISTRO}}    # interactive shell
+mc auth status {{DISTRO}}   # check pac/az auth
+mc logout {{DISTRO}}   # logout at end of day
+```
+
+For deploy:
+
+```powershell
+$env:PP_SOLUTION = '{{SOLUTION}}'
+mc deploy {{DISTRO}}
+```
+
+## Project logs
+
+Significant operations on live systems (deploys, imports, schema changes) go to:
+
+```
+dataverse/logs/YYYY-MM-DD/session.md
+```
+
+Daily chronology + metrics. See [PROTOCOLS.md](mc-framework/PROTOCOLS.md) WRAPUP for the standard.
+
+## Project-specific notes
+
+[Add here anything specific the agent needs to know to avoid having to
+re-discover every session — schema gotchas, business rules, external dependencies, etc.]

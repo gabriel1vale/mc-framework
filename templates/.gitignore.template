@@ -1,0 +1,39 @@
+# Claude Code local settings
+.claude/settings.local.json
+
+# Env files
+.env
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Logs runtime
+*.log
+
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Build artifacts
+dist/
+build/
+.power/
+.next/
+.cache/
+
+# Power Apps Code Apps
+power.config.json.local
+
+# Business data (xlsx, csv with real data) at root
+/*.xlsx
+/*.csv
+
+# mc-framework dependencies (gitignore by default — copy framework manually per project)
+mc-framework/
